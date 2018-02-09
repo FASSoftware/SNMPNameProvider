@@ -16,6 +16,10 @@ import net.percederberg.mibble.MibLoaderException;
 import net.percederberg.mibble.MibSymbol;
 
 public class SNMPNameProvider {
+	public String getType() {
+		return "SNMP";
+	}
+	
 	/** given a configuration object of form: {objectIds:List<String>[, mibs:List<String>]}
 	 * this method will return a mapping of objectIds to their human readable names**/
 	public Map<String, String> getNames(Object configOb) {
