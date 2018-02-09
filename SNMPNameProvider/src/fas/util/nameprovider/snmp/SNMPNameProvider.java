@@ -4,6 +4,8 @@ import java.io.IOException;
 import java.net.URL;
 import java.security.InvalidParameterException;
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
@@ -13,7 +15,8 @@ import java.util.Map;
 import net.percederberg.mibble.Mib;
 import net.percederberg.mibble.MibLoader;
 import net.percederberg.mibble.MibLoaderException;
-import net.percederberg.mibble.MibSymbol;
+import net.percederberg.mibble.MibValueSymbol;
+import net.percederberg.mibble.type.ObjectIdentifierType;
 
 public class SNMPNameProvider {
 	public String getType() {
@@ -25,10 +28,10 @@ public class SNMPNameProvider {
 	public Map<String, String> getNames(Object configOb) {
 		Config cfg = config(configOb);
 		List<String> objectIds = cfg.objectIds;
-		List<String> mibs = cfg.mibs;
+		List<String> mibsUrls = cfg.mibs;
 		
 		MibLoader loader = new MibLoader();
-		for(String mib : mibs) {
+		for(String mib : mibsUrls) {
 			try {
 				loader.load(new URL(mib));
 			} catch (IOException | MibLoaderException ex) {
@@ -36,28 +39,27 @@ public class SNMPNameProvider {
 			}
 		}
 		Map<String, String> oidToNameMap = new LinkedHashMap<String, String>();
-		for(Mib mib : loader.getMibs(true).values()) {
-			for(String oid : objectIds) {
-				oidToNameMap.put(oid, join(oidNamePath(mib, oid)));
-			}
-		}
+		Collection<Mib> mibs = Arrays.asList(loader.getAllMibs());
+		for(String oid : objectIds)
+			oidToNameMap.put(oid, join(oidNamePath(mibs, oid)));
 		return oidToNameMap;
 	}
 	
-	private List<String> oidNamePath(Mib mib, String oid){
+	private List<String> oidNamePath(Collection<Mib> mibs, String oid){
 		String[] parts = oid.split("\\.");
 		String partialOid = "";
 		List<String> path = new ArrayList<String>(parts.length);
-		boolean first = true;
-		for(String part : parts) {
-			if(first)
-				partialOid += part;
-			else
-				partialOid += "."+part;
-			MibSymbol symbol = mib.getSymbolByValue(partialOid);
-			String name = (symbol == null? null : symbol.getName());
+		for(int i = 0; i < parts.length; i++) {
+			String part = parts[i];
+			partialOid += (i==0?"":".")+part;
+			String name = null;
+			for(Mib mib : mibs) {
+				MibValueSymbol symbol = mib.getSymbolByValue(partialOid);
+				name = (symbol == null || !(symbol.getType() instanceof ObjectIdentifierType)? null : symbol.getName());
+				if(name != null)
+					break;
+			}
 			path.add(name == null? part : name);
-			first = false;
 		}
 		return path;
 	}
