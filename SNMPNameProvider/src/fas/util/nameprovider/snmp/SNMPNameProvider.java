@@ -1,79 +1,126 @@
 package fas.util.nameprovider.snmp;
 
+import java.io.IOException;
+import java.net.URL;
 import java.security.InvalidParameterException;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Iterator;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
+import net.percederberg.mibble.Mib;
+import net.percederberg.mibble.MibLoader;
+import net.percederberg.mibble.MibLoaderException;
+import net.percederberg.mibble.MibSymbol;
+
 public class SNMPNameProvider {
-	public String getName(Object configOb) {
+	/** given a configuration object of form: {objectIds:List<String>[, mibs:List<String>]}
+	 * this method will return a mapping of objectIds to their human readable names**/
+	public Map<String, String> getNames(Object configOb) {
 		Config cfg = config(configOb);
-		String objectId = cfg.objectId;
+		List<String> objectIds = cfg.objectIds;
 		List<String> mibs = cfg.mibs;
 		
-		// TODO use mibble to parse provided mib files
-		// then use result to identify the name for the provided object
-		
-		throw new RuntimeException("Not implemented");
+		MibLoader loader = new MibLoader();
+		for(String mib : mibs) {
+			try {
+				loader.load(new URL(mib));
+			} catch (IOException | MibLoaderException ex) {
+				throw new RuntimeException(ex);
+			}
+		}
+		Map<String, String> oidToNameMap = new LinkedHashMap<String, String>();
+		for(Mib mib : loader.getMibs(true).values()) {
+			for(String oid : objectIds) {
+				oidToNameMap.put(oid, join(oidNamePath(mib, oid)));
+			}
+		}
+		return oidToNameMap;
 	}
+	
+	private List<String> oidNamePath(Mib mib, String oid){
+		String[] parts = oid.split("\\.");
+		String partialOid = "";
+		List<String> path = new ArrayList<String>(parts.length);
+		boolean first = true;
+		for(String part : parts) {
+			if(first)
+				partialOid += part;
+			else
+				partialOid += "."+part;
+			MibSymbol symbol = mib.getSymbolByValue(partialOid);
+			String name = (symbol == null? null : symbol.getName());
+			path.add(name == null? part : name);
+			first = false;
+		}
+		return path;
+	}
+	private String join(List<String> parts) {
+		StringBuilder sb = new StringBuilder();
+		Iterator<String> it = parts.iterator();
+		if(it.hasNext()) {
+			sb.append(it.next());
+			while(it.hasNext())
+				sb.append(".").append(it.next());
+		}
+		return sb.toString();
+	}
+	
+	
 	@SuppressWarnings("unchecked")
-	private static final Config config(Object config) {
+	public static final Config config(Object config) {
 		if(config instanceof Config)
 			return (Config)config;
 		if(config instanceof Map)
 			return config((Map<String, Object>)config);
 		if(config instanceof List)
 			return config((List<Object>)config);
-		if(config instanceof String)
-			return config((String)config, null);
-		throw new InvalidParameterException();
+		throw new InvalidParameterException("configuration must be of the form {objectIds:['x.x.x.x'...], mibs:['<url>'...]}");
 	}
-	private static final Config config(Map<String, Object> cfg) {
+	/** create a config from a map of form {objectIds:['x.x.x.x'...], mibs:['<url>'...]}**/
+	public static final Config config(Map<String, Object> cfg) {
 		if(cfg == null)
-			throw new InvalidParameterException("no configuration was specified.  expecting Map{objectId:String[, mibs:List<String>]}");
-		Object objectId = cfg.get("objectId");
-		if(!(objectId instanceof String))
-			throw new InvalidParameterException("objectId must be a String of form 'x.x...x', where x is an integer");
-		List<String> mibs = correctList(cfg.get("mibs"), String.class);
-		return new Config((String)objectId, mibs);
+			cfg = Collections.emptyMap();
+		return config(correctList(cfg.get("objectIds"), String.class), correctList(cfg.get("mibs"), String.class));
 	}
-	private static final Config config(List<Object> cfg) {
+	/** create a config from a list of parameters of form [objectIds:['x.x.x.x'...], mibs:['<url>'...]]**/
+	public static final Config config(List<Object> cfg) {
 		if(cfg == null)
-			throw new InvalidParameterException("no configuration was specified.  expecting List{objectId:String[, mibs:List<String>]}");
-		if(cfg.size() < 1)
-			throw new InvalidParameterException("Incorrect number of parameters.  expected List{objectId:String[, mibs:List<String>]} requires at least one parameter");
-		String objectId = null;
+			cfg = Collections.emptyList();
+		List<String> objectIds = null;
 		List<String> mibs = null;
 		for(Object item : cfg) {
-			if(objectId == null && item instanceof String)
-				objectId = (String)item;
+			if(objectIds == null && item instanceof List)
+				objectIds = correctList(item, String.class);
 			else if(mibs == null && item instanceof List)
 				mibs = correctList(item, String.class);
 		}
-		if(objectId == null)
-			throw new InvalidParameterException("objectId must be a String of form 'x.x...x', where x is an integer");
+		if(objectIds == null)
+			objectIds = Collections.emptyList();
 		if(mibs == null)
 			mibs = Collections.emptyList();
-		return new Config(objectId, mibs);
+		return config(objectIds, mibs);
 	}
-	private static final Config config(String objectId, List<String> mibs) {
-		return new Config(objectId, correctList(mibs, String.class));
+	/** create a config from the specified list of object ids and list of mib urls**/
+	public static final Config config(List<String> objectIds, List<String> mibs) {
+		return new Config(correctList(objectIds, String.class), correctList(mibs, String.class));
 	}
 	
 	/** a configuration object for this NameProvider.  the getName method is expecting either
 	 * Map{objectId:String[, mibs:List<String>]} 
 	 * or
 	 * List{objectid:String[, mibs:List<String>]}**/
-	private static final class Config{
-		public final String objectId;
+	public static final class Config{
+		public final List<String> objectIds;
 		public final List<String> mibs;
-		private Config(String objectId, List<String> mibs) {
-			if(objectId == null)
-				throw new InvalidParameterException("objectId must be a String of form 'x.x...x', where x is an integer");
+		private Config(List<String> objectIds, List<String> mibs) {
+			if(objectIds == null)
+				throw new InvalidParameterException("objectId must be a list of Strings, each of form 'x.x...x', where x is an integer");
 			if(mibs == null)
 				throw new InvalidParameterException("mibs must be a List of Strings");
-			this.objectId = objectId;
+			this.objectIds = Collections.unmodifiableList(objectIds);
 			this.mibs = Collections.unmodifiableList(mibs);
 		}
 	}
