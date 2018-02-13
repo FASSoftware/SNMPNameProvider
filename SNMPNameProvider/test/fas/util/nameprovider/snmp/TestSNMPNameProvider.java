@@ -1,6 +1,6 @@
 package fas.util.nameprovider.snmp;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.Assert.fail;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -8,20 +8,22 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 
-import org.junit.jupiter.api.Test;
+import org.junit.Test;
 
-class TestSNMPNameProvider {
+
+public class TestSNMPNameProvider {
 
 	@Test
-	void testGetNames() {
+	public void testGetNames() {
 		try {
 			SNMPNameProvider provider = new SNMPNameProvider();
 			Map<String, String> oidToNameMap = provider.getNames(SNMPNameProvider.config(
-				list("1.3.6.1.2.1", "1.3.6.1.2.1.2.2.1.4.1", "1.3.6.1.2.1.33.1.1.5"),
+				list("1.3.6.1.2.1", "1.3.6.1.2.1.2.2.1.4.1", "1.3.6.1.2.1.33.1.1.5", "1.3.6.1.2.1.33.1.4.4.1.3.1"),
 				list("http://vpdemo.jaxcontrols.com/snmp/mib/stdupsv1.mib")));
 			System.out.println(prettyPrint(oidToNameMap));
 		}catch(RuntimeException ex) {
-			fail(ex);
+			ex.printStackTrace();
+			fail(ex.toString());
 		}
 	}
 	private static String prettyPrint(Object ob){

@@ -15,10 +15,15 @@ import java.util.Map;
 import net.percederberg.mibble.Mib;
 import net.percederberg.mibble.MibLoader;
 import net.percederberg.mibble.MibLoaderException;
+import net.percederberg.mibble.MibType;
 import net.percederberg.mibble.MibValueSymbol;
+import net.percederberg.mibble.snmp.SnmpType;
 import net.percederberg.mibble.type.ObjectIdentifierType;
 
 public class SNMPNameProvider {
+	public static void main(String[] args) {
+		System.out.println("fas.util.nameprovider.snmp.SNMPNameProvider is intended for use as a library");
+	}
 	public String getType() {
 		return "SNMP";
 	}
@@ -45,6 +50,7 @@ public class SNMPNameProvider {
 		return oidToNameMap;
 	}
 	
+	private static final List<Class<? extends MibType>> typePreferenceOrder = Arrays.asList(ObjectIdentifierType.class, SnmpType.class);
 	private List<String> oidNamePath(Collection<Mib> mibs, String oid){
 		String[] parts = oid.split("\\.");
 		String partialOid = "";
@@ -53,16 +59,44 @@ public class SNMPNameProvider {
 			String part = parts[i];
 			partialOid += (i==0?"":".")+part;
 			String name = null;
+			int typeIndex = -1;
 			for(Mib mib : mibs) {
+				// is this symbol defined in this mib?
 				MibValueSymbol symbol = mib.getSymbolByValue(partialOid);
-				name = (symbol == null || !(symbol.getType() instanceof ObjectIdentifierType)? null : symbol.getName());
-				if(name != null)
-					break;
+				if(symbol == null)
+					continue;
+				
+				// is it a better identifier than what we already have?
+				int symbolTypeIndex = symbolTypeIndex(symbol.getType());
+				if(symbolTypeIndex <= typeIndex)
+					continue;
+				
+				// does it have a name property?
+				String symbolName = symbol.getName();
+				if(symbolName == null)
+					continue;
+				
+				// if all of the above passes, then this is the next best name candidate.
+				name = symbolName;
+				typeIndex = symbolTypeIndex;
 			}
+			// if no identifying name could be found, fall back on the numeric object id
 			path.add(name == null? part : name);
 		}
 		return path;
 	}
+	private static final int symbolTypeIndex(MibType type) {
+		if(type == null)
+			return -1;
+		int i = 0;
+		for(Class<? extends MibType> mibtype : typePreferenceOrder) {
+			if(mibtype.isAssignableFrom(type.getClass()))
+				return i;
+			++i;
+		}
+		return -1;
+	}
+	
 	private String join(List<String> parts) {
 		StringBuilder sb = new StringBuilder();
 		Iterator<String> it = parts.iterator();
