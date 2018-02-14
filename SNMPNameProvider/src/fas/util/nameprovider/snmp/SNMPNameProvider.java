@@ -66,9 +66,9 @@ public class SNMPNameProvider {
 				if(symbol == null)
 					continue;
 				
-				// is it a better identifier than what we already have?
+				// is it a better (lower index) identifier than what we already have?
 				int symbolTypeIndex = symbolTypeIndex(symbol.getType());
-				if(symbolTypeIndex <= typeIndex)
+				if(symbolTypeIndex >= typeIndex)
 					continue;
 				
 				// does it have a name property?
