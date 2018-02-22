@@ -19,13 +19,33 @@ public class TestSNMPNameProvider {
 			SNMPNameProvider provider = new SNMPNameProvider();
 			Map<String, String> oidToNameMap = provider.getNames(SNMPNameProvider.config(
 				list("1.3.6.1.2.1", "1.3.6.1.2.1.2.2.1.4.1", "1.3.6.1.2.1.33.1.1.5", "1.3.6.1.2.1.33.1.4.4.1.3.1"),
-				list("http://vpdemo.jaxcontrols.com/snmp/mib/stdupsv1.mib")));
+				list("http://localhost:8124/storage/snmp/stdupsv1.mib")));
 			System.out.println(prettyPrint(oidToNameMap));
 		}catch(RuntimeException ex) {
 			ex.printStackTrace();
 			fail(ex.toString());
 		}
 	}
+	
+
+	@Test
+	public void testGetNames2() {
+		try {
+			SNMPNameProvider provider = new SNMPNameProvider();
+			Map<String, String> oidToNameMap = provider.getNames(SNMPNameProvider.config(
+				list("1.3.6.1.2.1.33.1.1.1.0", "1.3.6.1.4.1.534.1.1.1.0"),
+				list(
+					"http://localhost:8124/storage/snmp/stdupsv1.mib",
+					"http://localhost:8124/storage/snmp/Xups.mib"
+				)
+			));
+			System.out.println(prettyPrint(oidToNameMap));
+		}catch(RuntimeException ex) {
+			ex.printStackTrace();
+			fail(ex.toString());
+		}
+	}
+	
 	private static String prettyPrint(Object ob){
 		return prettyPrint(new StringBuilder(), ob, 0).toString();
 	}

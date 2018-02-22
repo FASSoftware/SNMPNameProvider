@@ -17,7 +17,7 @@ import net.percederberg.mibble.MibLoader;
 import net.percederberg.mibble.MibLoaderException;
 import net.percederberg.mibble.MibType;
 import net.percederberg.mibble.MibValueSymbol;
-import net.percederberg.mibble.snmp.SnmpType;
+import net.percederberg.mibble.snmp.*;
 import net.percederberg.mibble.type.ObjectIdentifierType;
 
 public class SNMPNameProvider {
@@ -50,7 +50,7 @@ public class SNMPNameProvider {
 		return oidToNameMap;
 	}
 	
-	private static final List<Class<? extends MibType>> typePreferenceOrder = Arrays.asList(ObjectIdentifierType.class, SnmpType.class, MibType.class);
+	private static final List<Class<? extends MibType>> typePreferenceOrder = Arrays.asList(ObjectIdentifierType.class, SnmpObjectIdentity.class, SnmpObjectType.class);
 	private List<String> oidNamePath(Collection<Mib> mibs, String oid){
 		String[] parts = oid.split("\\.");
 		String partialOid = "";
@@ -68,7 +68,7 @@ public class SNMPNameProvider {
 				
 				// is it a better (lower index) identifier than what we already have?
 				int symbolTypeIndex = symbolTypeIndex(symbol.getType());
-				if(symbolTypeIndex >= typeIndex && typeIndex != -1)
+				if(symbolTypeIndex >= typeIndex && typeIndex != -1 || symbolTypeIndex == -1)
 					continue;
 				
 				// does it have a name property?
