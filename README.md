@@ -36,4 +36,4 @@ for(Map.Entry<String, String> entry : oidToNameMap.entrySet())
 ```
 naming generally has the following pattern:
 
-given the oid "1.3.6.1.2.1" the name becomes "1.3.6.internet.mgmt.mib-2'
+given the oid "1.3.6.1.2.1" the name becomes "1.3.6.internet.mgmt.mib-2"
